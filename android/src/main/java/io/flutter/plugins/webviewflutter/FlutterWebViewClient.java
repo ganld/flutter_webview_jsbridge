@@ -7,6 +7,7 @@ package io.flutter.plugins.webviewflutter;
 import android.annotation.TargetApi;
 import android.graphics.Bitmap;
 import android.os.Build;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
@@ -15,6 +16,10 @@ import androidx.webkit.WebViewClientCompat;
 import io.flutter.plugin.common.MethodChannel;
 import java.util.HashMap;
 import java.util.Map;
+
+import com.github.lzyzsd.jsbridge.BridgeWebView;
+import com.github.lzyzsd.jsbridge.BridgeWebViewClient;
+import com.github.lzyzsd.jsbridge.BridgeWebViewClientCompat;
 
 // We need to use WebViewClientCompat to get
 // shouldOverrideUrlLoading(WebView view, WebResourceRequest request)
@@ -59,6 +64,9 @@ class FlutterWebViewClient {
     // On these devices we cannot tell whether the navigation is targeted to the main frame or not.
     // We proceed assuming that the navigation is targeted to the main frame. If the page had any
     // frames they will be loaded in the main frame instead.
+    Log.w(
+        TAG,
+        "Using a navigationDelegate with an old webview implementation, pages with frames or iframes will not work");
     notifyOnNavigationRequest(url, null, view, true);
     return true;
   }
@@ -91,62 +99,35 @@ class FlutterWebViewClient {
   // This method attempts to avoid using WebViewClientCompat due to bug
   // https://bugs.chromium.org/p/chromium/issues/detail?id=925887. Also, see
   // https://github.com/flutter/flutter/issues/29446.
-  WebViewClient createWebViewClient(boolean hasNavigationDelegate) {
+  WebViewClient createWebViewClient(WebView webView, boolean hasNavigationDelegate) {
     this.hasNavigationDelegate = hasNavigationDelegate;
 
     if (!hasNavigationDelegate || android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-      return internalCreateWebViewClient();
+      return internalCreateWebViewClient((BridgeWebView)webView);
     }
 
-    return internalCreateWebViewClientCompat();
+    return internalCreateWebViewClientCompat((BridgeWebView)webView);
   }
 
-  private WebViewClient internalCreateWebViewClient() {
-    return new WebViewClient() {
-      @TargetApi(Build.VERSION_CODES.N)
+  private WebViewClient internalCreateWebViewClient(BridgeWebView webView) {
+    return new BridgeWebViewClient(webView){
       @Override
-      public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+      public boolean onCustomShouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
         return FlutterWebViewClient.this.shouldOverrideUrlLoading(view, request);
       }
 
       @Override
-      public void onPageStarted(WebView view, String url, Bitmap favicon) {
-        FlutterWebViewClient.this.onPageStarted(view, url);
-      }
-
-      @Override
-      public void onPageFinished(WebView view, String url) {
-        FlutterWebViewClient.this.onPageFinished(view, url);
-      }
-
-      @Override
-      public void onUnhandledKeyEvent(WebView view, KeyEvent event) {
-        // Deliberately empty. Occasionally the webview will mark events as having failed to be
-        // handled even though they were handled. We don't want to propagate those as they're not
-        // truly lost.
-      }
-    };
-  }
-
-  private WebViewClientCompat internalCreateWebViewClientCompat() {
-    return new WebViewClientCompat() {
-      @Override
-      public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-        return FlutterWebViewClient.this.shouldOverrideUrlLoading(view, request);
-      }
-
-      @Override
-      public boolean shouldOverrideUrlLoading(WebView view, String url) {
+      protected boolean onCustomShouldOverrideUrlLoading(WebView view, String url) {
         return FlutterWebViewClient.this.shouldOverrideUrlLoading(view, url);
       }
 
       @Override
-      public void onPageStarted(WebView view, String url, Bitmap favicon) {
+      public void onCustomPageStarted(WebView view, String url){
         FlutterWebViewClient.this.onPageStarted(view, url);
       }
 
       @Override
-      public void onPageFinished(WebView view, String url) {
+      protected void onCustomPageFinished(WebView view, String url){
         FlutterWebViewClient.this.onPageFinished(view, url);
       }
 
@@ -157,6 +138,38 @@ class FlutterWebViewClient {
         // truly lost.
       }
     };
+  }
+
+  private WebViewClientCompat internalCreateWebViewClientCompat(BridgeWebView webView) {
+    return new BridgeWebViewClientCompat(webView){
+
+        @Override
+        public boolean onCustomShouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+            return FlutterWebViewClient.this.shouldOverrideUrlLoading(view, request);
+        }
+
+        @Override
+        protected boolean onCustomShouldOverrideUrlLoading(WebView view, String url) {
+            return FlutterWebViewClient.this.shouldOverrideUrlLoading(view, url);
+        }
+
+        @Override
+        public void onCustomPageStarted(WebView view, String url){
+            FlutterWebViewClient.this.onPageStarted(view, url);
+        }
+
+        @Override
+        protected void onCustomPageFinished(WebView view, String url){
+            FlutterWebViewClient.this.onPageFinished(view, url);
+        }
+
+        @Override
+        public void onUnhandledKeyEvent(WebView view, KeyEvent event) {
+            // Deliberately empty. Occasionally the webview will mark events as having failed to be
+            // handled even though they were handled. We don't want to propagate those as they're not
+            // truly lost.
+        }
+};
   }
 
   private static class OnNavigationRequestResult implements MethodChannel.Result {

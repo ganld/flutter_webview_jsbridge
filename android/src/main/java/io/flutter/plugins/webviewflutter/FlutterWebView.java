@@ -19,8 +19,18 @@ import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
 import io.flutter.plugin.platform.PlatformView;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+
+
+import android.annotation.SuppressLint;
+import android.util.Log;
+import com.github.lzyzsd.jsbridge.BridgeHandler;
+import com.github.lzyzsd.jsbridge.BridgeWebView;
+import com.github.lzyzsd.jsbridge.CallBackFunction;
+import com.github.lzyzsd.jsbridge.BridgeWebViewClient;
 
 public class FlutterWebView implements PlatformView, MethodCallHandler {
   private static final String JS_CHANNEL_NAMES_FIELD = "javascriptChannelNames";
@@ -157,6 +167,12 @@ public class FlutterWebView implements PlatformView, MethodCallHandler {
       case "getTitle":
         getTitle(result);
         break;
+      case "registerHandler":
+        registerHandler(methodCall,result);
+        break;
+      case "callHandler":
+        callHandler(methodCall,result);
+        break;
       default:
         result.notImplemented();
     }
@@ -253,6 +269,73 @@ public class FlutterWebView implements PlatformView, MethodCallHandler {
     result.success(webView.getTitle());
   }
 
+  private Map<String,String> jsBridgeArgs(String handlerName,String data){
+    Map<String,String> args = new HashMap();
+    args.put("handlerName",handlerName);
+    if (data != null){
+      args.put("data",data);
+    }
+    return  args;
+  }
+
+  private void registerHandler(MethodCall methodCall, final Result result){
+//    Log.e("invokeMethod-jsBridge",s);
+    final Map<String,String> arguments = (Map<String,String>)methodCall.arguments;
+    final String handlerName = arguments.get("handlerName");
+    if (handlerName != null){
+      webView.registerHandler(handlerName,new BridgeHandler(){
+        @Override
+        public void handler(String data, final CallBackFunction function) {
+          Map<String,String> args = jsBridgeArgs(handlerName,data);
+          methodChannel.invokeMethod("jsBridge", args, new Result() {
+            @Override
+            public void success(Object o) {
+              Log.e("registerHandler/success",o.toString());
+              if (function != null){
+                function.onCallBack(o.toString());
+              }
+            }
+
+            @Override
+            public void error(String s, String s1, Object o) {
+              Log.e("registerHandler/error", o.toString());
+
+            }
+            @SuppressLint("LongLogTag")
+            @Override
+            public void notImplemented() {
+              Log.e("registerHandler/notImplemented", "");
+            }
+          });
+        }
+      });
+      result.success("registerHandler success");
+    }else{
+      result.error(  "HandlerName is null", handlerName,"register faild");
+    }
+
+  }
+
+  private void callHandler(MethodCall methodCall, final Result result){
+    final Map<String,String> arguments = (Map<String,String>)methodCall.arguments;
+    final String handlerName = arguments.get("handlerName");
+    final String data = arguments.get("data");
+    Log.d("666",handlerName);
+    if (handlerName != null){
+      webView.callHandler(handlerName,data,new CallBackFunction(){
+        @Override
+        public void onCallBack(String data) {
+          Map<String,String> args = jsBridgeArgs(handlerName,data);
+          methodChannel.invokeMethod("jsBridgeCall",args);
+        }
+      });
+      result.success("registerHandler success");
+    }else{
+      result.error(  "HandlerName is null", handlerName,"register faild");
+    }
+
+  }
+
   private void applySettings(Map<String, Object> settings) {
     for (String key : settings.keySet()) {
       switch (key) {
@@ -263,14 +346,16 @@ public class FlutterWebView implements PlatformView, MethodCallHandler {
           final boolean hasNavigationDelegate = (boolean) settings.get(key);
 
           final WebViewClient webViewClient =
-              flutterWebViewClient.createWebViewClient(hasNavigationDelegate);
+                  flutterWebViewClient.createWebViewClient(webView,hasNavigationDelegate);
 
           webView.setWebViewClient(webViewClient);
           break;
         case "debuggingEnabled":
           final boolean debuggingEnabled = (boolean) settings.get(key);
 
-          webView.setWebContentsDebuggingEnabled(debuggingEnabled);
+          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            webView.setWebContentsDebuggingEnabled(debuggingEnabled);
+          }
           break;
         case "gestureNavigationEnabled":
           break;
@@ -300,7 +385,9 @@ public class FlutterWebView implements PlatformView, MethodCallHandler {
     // This is the index of the AutoMediaPlaybackPolicy enum, index 1 is always_allow, for all
     // other values we require a user gesture.
     boolean requireUserGesture = mode != 1;
-    webView.getSettings().setMediaPlaybackRequiresUserGesture(requireUserGesture);
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+      webView.getSettings().setMediaPlaybackRequiresUserGesture(requireUserGesture);
+    }
   }
 
   private void registerJavaScriptChannelNames(List<String> channelNames) {

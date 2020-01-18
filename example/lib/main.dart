@@ -34,9 +34,16 @@ class WebViewExample extends StatefulWidget {
 class _WebViewExampleState extends State<WebViewExample> {
   final Completer<WebViewController> _controller =
       Completer<WebViewController>();
+      WebViewController _webController;
+
 
   @override
   Widget build(BuildContext context) {
+    String userAgent = 'android Android';
+    String url = 'https://flutter.dev';
+    
+
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Flutter WebView example'),
@@ -50,21 +57,23 @@ class _WebViewExampleState extends State<WebViewExample> {
       // to allow calling Scaffold.of(context) so we can show a snackbar.
       body: Builder(builder: (BuildContext context) {
         return WebView(
-          initialUrl: 'https://flutter.dev',
+          // initialUrl: 'https://flutter.dev',
+          initialUrl:url,
+          userAgent:userAgent,
           javascriptMode: JavascriptMode.unrestricted,
           onWebViewCreated: (WebViewController webViewController) {
+            _webController = webViewController;
+            this.registerHandlers(webViewController);
             _controller.complete(webViewController);
           },
-          // TODO(iskakaushik): Remove this when collection literals makes it to stable.
-          // ignore: prefer_collection_literals
           javascriptChannels: <JavascriptChannel>[
             _toasterJavascriptChannel(context),
           ].toSet(),
           navigationDelegate: (NavigationRequest request) {
-            if (request.url.startsWith('https://www.youtube.com/')) {
-              print('blocking navigation to $request}');
-              return NavigationDecision.prevent;
-            }
+            // if (request.url.startsWith('https://www.youtube.com/')) {
+            //   print('blocking navigation to $request}');
+            //   return NavigationDecision.prevent;
+            // }
             print('allowing navigation to $request');
             return NavigationDecision.navigate;
           },
@@ -77,8 +86,38 @@ class _WebViewExampleState extends State<WebViewExample> {
           gestureNavigationEnabled: true,
         );
       }),
-      floatingActionButton: favoriteButton(),
+      // floatingActionButton: favoriteButton(),
+      floatingActionButton: FloatingActionButton(
+        onPressed: (){
+          callHandler(_webController,context);
+        },
+        child: const Icon(Icons.favorite),
+      ),
     );
+  }
+
+  registerHandlers(WebViewController controller){
+    // h5->调用 flutter
+    controller.registerHandler('changeUser', (data) async {
+      print('changeuser: $data');
+      await Future.delayed(Duration(seconds:1));
+      return 'Flutter onJSBridgeCall';
+    });
+    controller.registerHandler('reloadUrl', (res) async{
+      // controller.reload();
+      print('flutter handler-reloadurl jsbridge call');
+      return 'reloadUrl test....';
+    });
+    
+  }
+  void callHandler(WebViewController controller,BuildContext context) {
+    print('callh5:$controller');
+    controller.callHandler('changeName', 'ganld', (res){
+        print(' $res');
+        Scaffold.of(context).showSnackBar(
+          SnackBar(content: Text('success')),
+        );
+    });
   }
 
   JavascriptChannel _toasterJavascriptChannel(BuildContext context) {

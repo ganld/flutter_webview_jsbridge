@@ -10,6 +10,10 @@ import 'package:flutter/widgets.dart';
 
 import 'webview_flutter.dart';
 
+typedef Future<dynamic> JsBridgeCallBack(Object res);
+typedef void JsBridgeCallHandler(Object res);
+
+
 /// Interface for callbacks made by [WebViewPlatformController].
 ///
 /// The webview plugin implements this class, and passes an instance to the [WebViewPlatformController].
@@ -28,6 +32,9 @@ abstract class WebViewPlatformCallbacksHandler {
 
   /// Invoked by [WebViewPlatformController] when a page has finished loading.
   void onPageFinished(String url);
+
+  Future<dynamic> onJsBridgeCall(String handlerName,String data);
+  void onBridgeCallHandler(String handlerName,String data);
 }
 
 /// Interface for talking to the webview's platform implementation.
@@ -167,6 +174,16 @@ abstract class WebViewPlatformController {
     throw UnimplementedError(
         "WebView getTitle is not implemented on the current platform");
   }
+  
+  Future<dynamic> registerHandler(String handlerName) {
+    throw UnimplementedError(
+        "WebView registerHandler is not implemented on the current platform");
+  }
+  Future<dynamic> callHandler(String handlerName,String data) {
+    throw UnimplementedError(
+        "WebView registerHandler is not implemented on the current platform");
+  }
+
 }
 
 /// A single setting for configuring a WebViewPlatform which may be absent.

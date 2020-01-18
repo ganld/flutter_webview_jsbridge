@@ -10,6 +10,7 @@ import android.content.Context;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.webkit.WebView;
+import com.github.lzyzsd.jsbridge.BridgeWebView;
 
 /**
  * A WebView subclass that mirrors the same implementation hacks that the system WebView does in
@@ -21,8 +22,9 @@ import android.webkit.WebView;
  *
  * <p>See also {@link ThreadedInputConnectionProxyAdapterView}.
  */
-final class InputAwareWebView extends WebView {
-  private static final String TAG = "InputAwareWebView";
+final class InputAwareWebView extends BridgeWebView {
+//  private final View containerView;
+
   private View threadedInputConnectionProxyView;
   private ThreadedInputConnectionProxyAdapterView proxyAdapterView;
   private View containerView;

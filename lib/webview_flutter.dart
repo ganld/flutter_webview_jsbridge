@@ -448,6 +448,8 @@ class _PlatformCallbacksHandler implements WebViewPlatformCallbacksHandler {
   }
 
   WebView _widget;
+  Map<String,Function> _jsBridgeHanlers = Map<String,Function>();
+  Map<String,Function> _jsCallHanlers = Map<String,Function>();
 
   // Maps a channel name to a channel.
   final Map<String, JavascriptChannel> _javascriptChannels =
@@ -479,6 +481,23 @@ class _PlatformCallbacksHandler implements WebViewPlatformCallbacksHandler {
   void onPageFinished(String url) {
     if (_widget.onPageFinished != null) {
       _widget.onPageFinished(url);
+    }
+  }
+
+  @override
+  Future<dynamic> onJsBridgeCall(String handlerName,String data) async {
+    JsBridgeCallBack callBack = _jsBridgeHanlers[handlerName];
+    if(callBack != null){
+      String result = await callBack(data);
+      return result;
+    }
+    return null;
+  }
+  @override
+  void onBridgeCallHandler(String handlerName, String data) {
+    JsBridgeCallHandler handler = _jsBridgeHanlers[handlerName];
+    if(handler != null){
+       handler(data);
     }
   }
 
@@ -659,6 +678,25 @@ class WebViewController {
   Future<String> getTitle() {
     return _webViewPlatformController.getTitle();
   }
+  
+  Future<dynamic> registerHandler(String handlerName,JsBridgeCallBack onJsBridgeCall) async {
+    if(handlerName != null && onJsBridgeCall != null){
+      _platformCallbacksHandler._jsBridgeHanlers[handlerName] = onJsBridgeCall;
+    }
+    final String result = await _webViewPlatformController.registerHandler(handlerName);
+    return result;
+  }
+
+  Future<void> callHandler(String handlerName,String data,JsBridgeCallHandler callHandler) async {
+    if(handlerName != null && callHandler != null){
+      _platformCallbacksHandler._jsCallHanlers[handlerName] = callHandler;
+    }
+    final String result = await _webViewPlatformController.callHandler(handlerName,data);
+    return result;
+  }
+
+
+
 }
 
 /// Manages cookies pertaining to all [WebView]s.

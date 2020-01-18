@@ -4,6 +4,7 @@
 
 import 'dart:async';
 
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../platform_interface.dart';
@@ -25,7 +26,7 @@ class MethodChannelWebViewPlatform implements WebViewPlatformController {
   static const MethodChannel _cookieManagerChannel =
       MethodChannel('plugins.flutter.io/cookie_manager');
 
-  Future<bool> _onMethodCall(MethodCall call) async {
+  Future<dynamic> _onMethodCall(MethodCall call) async {
     switch (call.method) {
       case 'javascriptChannelMessage':
         final String channel = call.arguments['channel'];
@@ -42,6 +43,20 @@ class MethodChannelWebViewPlatform implements WebViewPlatformController {
         return null;
       case 'onPageStarted':
         _platformCallbacksHandler.onPageStarted(call.arguments['url']);
+        return null;
+      case 'jsBridge':
+        final String handlerName = call.arguments['handlerName'];
+        final String data = call.arguments['data'];
+        if (handlerName != null) {
+          return _platformCallbacksHandler.onJsBridgeCall(handlerName, data); 
+        }
+        return null;
+      case 'jsBridgeCall':
+        final String handlerName = call.arguments['handlerName'];
+        final String data = call.arguments['data'];
+        if (handlerName != null) {
+          return _platformCallbacksHandler.onBridgeCallHandler(handlerName, data); 
+        }
         return null;
     }
     throw MissingPluginException(
@@ -110,6 +125,32 @@ class MethodChannelWebViewPlatform implements WebViewPlatformController {
 
   @override
   Future<String> getTitle() => _channel.invokeMethod<String>("getTitle");
+
+  @override
+  Future<dynamic> registerHandler(String handlerName) async {
+    if(handlerName == null){
+      return null;
+    }
+    var args = {'handlerName':handlerName};
+    final String result = await _channel.invokeMethod("registerHandler", args);
+    return result;
+  }
+
+  @override
+  Future<dynamic> callHandler(String handlerName,String data) async{
+    if(handlerName == null){
+      print('handlerName is null');
+      return null;
+    }
+    var args = {'handlerName':handlerName};
+    if(data != null){
+      args['data'] = data;
+    }
+    final String result = await _channel.invokeMethod("callHandler", args);
+    return result;
+  }
+
+
 
   /// Method channel implementation for [WebViewPlatform.clearCookies].
   static Future<bool> clearCookies() {
