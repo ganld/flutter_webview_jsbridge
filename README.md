@@ -34,3 +34,13 @@ Add `webview_flutter` as a [dependency in your pubspec.yaml file](https://flutte
 
 You can now include a WebView widget in your widget tree.
 See the WebView widget's Dartdoc for more details on how to use the widget.
+
+# Usage (flutter_webview_jsbridge)
+Add `webview_flutter` as a plugin in [dependency in your pubspec.yaml file]
+like this:
+dependencies:
+
+    webview_flutter:
+        git:
+        url: https://github.com/ganld/flutter_webview_jsbridge.git
+        ref: master   #Specify the branch   optional
